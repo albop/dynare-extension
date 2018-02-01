@@ -1,8 +1,8 @@
 {
   "private": true,
-  "name": "dynare-extension",
+  "name": "dolo-extension",
   "version": "0.1.0",
-  "description": "dynare renderer for JupyterLab",
+  "description": "dolo renderer for JupyterLab",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "keywords": [

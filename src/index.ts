@@ -5,6 +5,7 @@
 
 import {
   Widget
+
 } from '@phosphor/widgets';
 
 
@@ -13,10 +14,11 @@ import {
 } from '@jupyterlab/rendermime-interfaces';
 
 import {
-  ContentsManager
+  Kernel
 } from '@jupyterlab/services';
 
 import '../style/index.css';
+import { JSONObject } from "@phosphor/coreutils/lib";
 
 /**
  * A widget for rendering data, for usage with rendermime.
@@ -32,67 +34,87 @@ class RenderedData extends Widget implements IRenderMime.IRenderer {
   constructor(options: IRenderMime.IRendererOptions) {
     super();
   };
-  //
-  // test_kernel() {
-  //
-  //
-  //   let contents = new ContentsManager();
-  //
-  //   // Create a new python file.
-  //   contents.newUntitled({ path: '/foo', type: 'file', ext: 'py' }).then(
-  //    (model) => {
-  //      console.log('new file:', model.path);
-  //    }
-  //   );
-  //
-  //   // Get the contents of a directory.
-  //   contents.get('/foo/bar').then(
-  //    (model) => {
-  //      console.log('files:', model.content);
-  //    }
-  //   );
-  //   //
-  //   // // Rename a file.
-  //   // contents.rename('/foo/bar.txt', '/foo/baz.txt');
-  //   //
-  //   // // Save a file.
-  //   // contents.save('/foo/test.ipynb');
-  //   //
-  //   // // Delete a file.
-  //   // contents.delete('/foo/bar.txt');
-  //   //
-  //   // // Copy a file.
-  //   // contents.copy('/foo/bar.txt', '/baz').then((model) => {
-  //   //     console.log('new path', model.path);
-  //   // });
-  //   //
-  //   // // Create a checkpoint.
-  //   // contents.createCheckpoint('/foo/bar.ipynb').then((model) => {
-  //   //   let checkpoint = model;
-  //   //
-  //   //   // Restore a checkpoint.
-  //   //   contents.restoreCheckpoint('/foo/bar.ipynb', checkpoint.id);
-  //   //
-  //   //   // Delete a checkpoint.
-  //   //   contents.deleteCheckpoint('/foo/bar.ipynb', checkpoint.id);
-  //   // });
-  //   //
-  //   // // List checkpoints for a file.
-  //   // contents.listCheckpoints('/foo/bar.txt').then((models) => {
-  //   //     console.log(models[0].id);
-  //   // });
-  // }
 
+  //
+  test_kernel(code_content: string) {
+      // Get a list of available kernels and connect to one.
+
+      // Get info about the available kernels and start a new one.
+      Kernel.getSpecs().then(kernelSpecs => {
+        console.log('Default spec:', kernelSpecs.default);
+        console.log('Available specs', Object.keys(kernelSpecs.kernelspecs));
+        // use the default name
+        let options: Kernel.IOptions = {
+          name: kernelSpecs.default
+        };
+        console.log("Default: ", options);
+        Kernel.startNew(options).then(kernel => {
+            // Execute and handle replies.
+            console.log('Future is not fulfilled yet');
+            let future = kernel.requestExecute({ code: code_content } );
+            future.done.then(() => {
+                console.log('Future is fulfilled');
+              });
+            future.onIOPub = (msg) => {
+                if (msg.header.msg_type == "execute_result") {
+                    // console.log(msg);  // Print rich output data.
+                    let result = msg.content.data;
+                    console.log(result);
+                    // return result
+                    // result['text/html'];
+                    // this.node.textContent = result["text/html"].toString();
+                    // this.node.textContent = result as string;
+                }
+            };
+            console.log("Great !")
+        });
+      });
+  }
   /**
    * Render into this widget's node.
    */
   renderModel(model: IRenderMime.IMimeModel): Promise<void> {
     return new Promise<void>((resolve, reject) => {
+      let data = model.data['application/vnd.dolo.yaml'] as string;
+      // this.test_kernel(data);
 
 
+      let code_content = 'import mylib\n';
+      code_content += 'txt = """' + data + '"""\n';
+      code_content += "mylib.process(txt)";
+      console.log(code_content);
 
-      let data = model.data['application/vnd.dynare.mod'] as string;
-      this.node.textContent = data;
+      // Get info about the available kernels and start a new one.
+      Kernel.getSpecs().then(kernelSpecs => {
+        console.log('Default spec:', kernelSpecs.default);
+        console.log('Available specs', Object.keys(kernelSpecs.kernelspecs));
+        // use the default name
+        let options: Kernel.IOptions = {
+          name: kernelSpecs.default
+        };
+        console.log("Default: ", options);
+        Kernel.startNew(options).then(kernel => {
+            // Execute and handle replies.
+            console.log('Future is not fulfilled yet');
+            let future = kernel.requestExecute({ code: code_content } );
+            future.done.then(() => {
+                console.log('Future is fulfilled');
+              });
+            future.onIOPub = (msg) => {
+                if (msg.header.msg_type == "execute_result") {
+                    // console.log(msg);  // Print rich output data.
+                    let result = msg.content.data as JSONObject;
+                    console.log(result);
+                    // return result
+                    // result['text/html'];
+                    // this.node.textContent = result["text/html"].toString();
+                    this.node.innerHTML = result["text/html"] as string;
+                }
+            };
+            console.log("Great !")
+        });
+      });
+      // this.node.textContent = data;
       resolve();
     });
   }
@@ -105,26 +127,26 @@ class RenderedData extends Widget implements IRenderMime.IRenderer {
 export
 const rendererFactory: IRenderMime.IRendererFactory = {
   safe: false,
-  mimeTypes: ['application/vnd.dynare.mod'],
+  mimeTypes: ['application/vnd.dolo.yaml'],
   createRenderer: options => new RenderedData(options)
 };
 
 const extensions = {
-    id: `jupyterlab-dynare`,
+    id: `jupyterlab-dolo`,
     rendererFactory,
     rank: 0,
     dataType: 'string',
     fileTypes: [{
-      name:'Dynare',
-      extensions:['.mod','.json'],
-      mimeTypes: ['application/vnd.dynare.mod'],
+      name:'dolo',
+      extensions:['.dolo','.yaml'],
+      mimeTypes: ['application/vnd.dolo.yaml'],
       iconClass: 'jp-MaterialIcon jp-MSAIcon'
     }],
     documentWidgetFactoryOptions: {
-      name: 'Dynare',
-      primaryFileType: 'Dynare',
-      fileTypes: ['Dynare'],
-      defaultFor: ['Dynare'],
+      name: 'Dolo',
+      primaryFileType: 'dolo',
+      fileTypes: ['dolo','yaml'],
+      defaultFor: ['Dolo'],
     }
   } as IRenderMime.IExtension;
 
